@@ -20,7 +20,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 2,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -36,6 +36,30 @@ class AppDatabase {
               updatedAt TEXT NOT NULL
             )
           ''');
+        }
+        if (oldVersion < 3) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS radio_slots (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              dayDate TEXT NOT NULL,
+              slotTime TEXT NOT NULL,
+              playlistId INTEGER,
+              note TEXT,
+              createdAt TEXT NOT NULL
+            )
+          ''');
+        }
+        if (oldVersion < 4) {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS radio_stations (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              title TEXT NOT NULL,
+              accent TEXT NOT NULL,
+              createdAt TEXT NOT NULL
+            )
+          ''');
+          await db.execute('ALTER TABLE radio_slots ADD COLUMN stationId INTEGER');
+          await db.execute("UPDATE radio_slots SET stationId = 1 WHERE stationId IS NULL");
         }
       },
     );
@@ -84,6 +108,33 @@ class AppDatabase {
         note TEXT
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE radio_stations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        accent TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE radio_slots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        dayDate TEXT NOT NULL,
+        slotTime TEXT NOT NULL,
+        stationId INTEGER NOT NULL,
+        playlistId INTEGER,
+        note TEXT,
+        createdAt TEXT NOT NULL
+      )
+    ''');
+
+    await db.insert('radio_stations', {
+      'title': 'Моя первая станция',
+      'accent': '#66DEDD',
+      'createdAt': DateTime.now().toIso8601String(),
+    });
 
     await db.insert('playlists', {
       'title': 'Ночной вайб',
@@ -267,12 +318,77 @@ class AppDatabase {
   }
 
   Future<int> deleteAssignment(String date) async {
-  final db = await database;
+    final db = await database;
 
-  return db.delete(
-    'calendar_assignments',
-    where: 'date = ?',
-    whereArgs: [date],
-  );
-}
+    return db.delete(
+      'calendar_assignments',
+      where: 'date = ?',
+      whereArgs: [date],
+    );
+  }
+
+  Future<List<Map<String, Object?>>> getRadioStations() async {
+    final db = await database;
+    return db.query('radio_stations', orderBy: 'id ASC');
+  }
+
+  Future<int> insertRadioStation(Map<String, Object?> station) async {
+    final db = await database;
+    return db.insert('radio_stations', station);
+  }
+
+  Future<List<Map<String, Object?>>> getRadioSlotsByDateAndStation(String dayDate, int stationId) async {
+    final db = await database;
+    return db.query(
+      'radio_slots',
+      where: 'dayDate = ? AND stationId = ?',
+      whereArgs: [dayDate, stationId],
+      orderBy: 'slotTime ASC',
+    );
+  }
+
+  Future<int> saveRadioSlot({
+    required String dayDate,
+    required String slotTime,
+    required int stationId,
+    required int playlistId,
+    String? note,
+  }) async {
+    final db = await database;
+    final existing = await db.query(
+      'radio_slots',
+      where: 'dayDate = ? AND slotTime = ? AND stationId = ?',
+      whereArgs: [dayDate, slotTime, stationId],
+      limit: 1,
+    );
+
+    final payload = {
+      'dayDate': dayDate,
+      'slotTime': slotTime,
+      'stationId': stationId,
+      'playlistId': playlistId,
+      'note': note,
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+
+    if (existing.isEmpty) {
+      return db.insert('radio_slots', payload);
+    }
+
+    return db.update(
+      'radio_slots',
+      payload,
+      where: 'id = ?',
+      whereArgs: [existing.first['id']],
+    );
+  }
+
+  Future<int> deleteRadioSlot(int id) async {
+    final db = await database;
+    return db.delete(
+      'radio_slots',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 }

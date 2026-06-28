@@ -214,30 +214,8 @@ class _MusicTabState extends State<MusicTab> {
                         ),
 
                         onDismissed: (_) async {
-                          final playlists =
-                              await AppDatabase.instance.getPlaylists();
-
-                          if (playlists.isEmpty) return;
-
-                          final playlistId =
-                              playlists.first['id'] as int;
-
-                          final tracks =
-                              await AppDatabase.instance.getPlaylistTracks(
-                            playlistId,
-                          );
-
-                          final target = tracks.firstWhere(
-                            (t) =>
-                                t['title'] == song.title &&
-                                t['artist'] == song.artist,
-                            orElse: () => {},
-                          );
-
-                          if (target.isNotEmpty) {
-                            await AppDatabase.instance.deleteTrack(
-                              target['id'] as int,
-                            );
+                          if (song.trackId != null) {
+                            await AppDatabase.instance.deleteTrack(song.trackId!);
                           }
 
                           _refresh();
@@ -350,11 +328,19 @@ Future<List<_SongItemData>> _loadSongs() async {
 
 /// MODEL
 class _SongItemData {
+  final int? trackId;
+  final int? playlistId;
   final String title;
   final String artist;
+  final String cover;
+  final String? filePath;
 
   _SongItemData({
+    required this.trackId,
+    required this.playlistId,
     required this.title,
     required this.artist,
+    required this.cover,
+    required this.filePath,
   });
 }

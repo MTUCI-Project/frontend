@@ -165,9 +165,20 @@ class AuthScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.pushNamed(context, '/register');
                     },
-                    child: const Text(
-                      'Нет аккаунта? Зарегистрироваться',
-                      style: TextStyle(color: Colors.white70),
+                    child: RichText(
+                      text: const TextSpan(
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                        children: [
+                          TextSpan(
+                            text: 'Нет аккаунта? ',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          TextSpan(
+                            text: 'Зарегистрироваться',
+                            style: TextStyle(color: Color(0xFFFFD54F)),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   SizedBox(height: screenHeight * 0.06),

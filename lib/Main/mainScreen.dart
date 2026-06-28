@@ -1,9 +1,12 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../Database/app_database.dart';
 import 'mainMusic.dart';
 import 'mainCalendar.dart';
 import 'mainSettings.dart';
+import 'player_controller.dart';
 
 const String _discSvg = '''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 16C9.79 16 8 14.21 8 12C8 9.79 9.79 8 12 8C14.21 8 16 9.79 16 12C16 14.21 14.21 16 12 16Z" fill="currentColor"/>
@@ -21,6 +24,23 @@ const String _userSvg = '''<svg width="24" height="24" viewBox="0 0 24 24" fill=
 <path d="M12 12C14.76 12 17 9.76 17 7C17 4.24 14.76 2 12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12ZM12 14C8.13 14 5 17.13 5 21H19C19 17.13 15.87 14 12 14Z" fill="currentColor"/>
 </svg>''';
 
+final List<String> _playlistAccentPalette = [
+  '#66DEDD',
+  '#5C7CFA',
+  '#FF6B6B',
+  '#FFD166',
+  '#9B5DE5',
+  '#00C2A8',
+  '#FF8FAB',
+  '#4ECDC4',
+  '#2EC4B6',
+  '#FF7F50',
+];
+
+String _randomPlaylistAccent() {
+  return _playlistAccentPalette[Random().nextInt(_playlistAccentPalette.length)];
+}
+
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -30,18 +50,27 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-
   late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
-    _pages = const [
-      PlaylistsTab(),
-      MusicTab(),
-      CalendarTab(),
-      SettingsTab(),
+    PlayerController.instance.initialize();
+    _pages = [
+      const PlaylistsTab(),
+      MusicTab(onPlayQueue: _startPlayback),
+      const CalendarTab(),
+      const SettingsTab(),
     ];
+  }
+
+  void _startPlayback(List<Map<String, Object?>> queue, {required int startIndex}) {
+    PlayerController.instance.playQueue(
+      queue: queue,
+      startIndex: startIndex,
+      sourceType: 'library',
+      sourceId: null,
+    );
   }
 
   @override
@@ -49,7 +78,19 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF020912),
       body: SafeArea(
-        child: IndexedStack(index: _selectedIndex, children: _pages),
+        child: Stack(
+          children: [
+            IndexedStack(index: _selectedIndex, children: _pages),
+            Positioned(
+              left: 4,
+              right: 4,
+              bottom: 4,
+              child: _MiniPlayerBar(
+                onTap: () => setState(() {}),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
@@ -98,6 +139,248 @@ class _MainScreenState extends State<MainScreen> {
         isSelected ? const Color(0xFF66DEDD) : Colors.white54,
         BlendMode.srcIn,
       ),
+    );
+  }
+}
+
+class _MiniPlayerBar extends StatefulWidget {
+  const _MiniPlayerBar({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  State<_MiniPlayerBar> createState() => _MiniPlayerBarState();
+}
+
+class _MiniPlayerBarState extends State<_MiniPlayerBar> {
+  bool _uiIsPlaying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _uiIsPlaying = PlayerController.instance.isPlaying;
+    PlayerController.instance.addListener(_refresh);
+  }
+
+  @override
+  void dispose() {
+    PlayerController.instance.removeListener(_refresh);
+    super.dispose();
+  }
+
+  void _refresh() {
+    if (mounted) {
+      setState(() {
+        _uiIsPlaying = PlayerController.instance.isPlaying;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final player = PlayerController.instance;
+    final currentTrack = player.currentTrack;
+    final hasTrack = currentTrack != null;
+
+    if (!hasTrack) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 0),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1727),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF66DEDD).withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.music_note, color: Color(0xFF66DEDD), size: 22),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _MarqueeText(
+                  text: currentTrack['title'] as String? ?? 'Без названия',
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+                _MarqueeText(
+                  text: currentTrack['artist'] as String? ?? 'Неизвестно',
+                  style: const TextStyle(color: Colors.white54, fontSize: 9.2),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      _formatDuration(player.position),
+                      style: const TextStyle(color: Colors.white54, fontSize: 8.5),
+                    ),
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: const Color(0xFFFFD54F),
+                          inactiveTrackColor: Colors.white12,
+                          thumbColor: const Color(0xFFFFD54F),
+                          overlayColor: const Color(0xFFFFD54F).withValues(alpha: 0.25),
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+                          trackHeight: 1.7,
+                        ),
+                        child: Slider(
+                          value: player.duration.inMilliseconds > 0
+                              ? player.position.inMilliseconds.clamp(0, player.duration.inMilliseconds).toDouble()
+                              : 0,
+                          max: player.duration.inMilliseconds > 0 ? player.duration.inMilliseconds.toDouble() : 1,
+                          onChanged: (value) async {
+                            await player.seekTo(Duration(milliseconds: value.toInt()));
+                          },
+                        ),
+                      ),
+                    ),
+                    Text(
+                      _formatDuration(player.duration),
+                      style: const TextStyle(color: Colors.white54, fontSize: 8.5),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                onPressed: () async {
+                  await player.playPrevious();
+                  _refresh();
+                  widget.onTap();
+                },
+                icon: const Icon(Icons.skip_previous, color: Colors.white, size: 16),
+              ),
+              Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF66DEDD),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  onPressed: () async {
+                    setState(() {
+                      _uiIsPlaying = !_uiIsPlaying;
+                    });
+                    await player.togglePlayback();
+                    _refresh();
+                    widget.onTap();
+                  },
+                  icon: Icon(
+                    _uiIsPlaying || player.isPlaying ? Icons.pause : Icons.play_arrow,
+                    color: Colors.white,
+                    size: 15,
+                  ),
+                ),
+              ),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                onPressed: () async {
+                  await player.playNext();
+                  _refresh();
+                  widget.onTap();
+                },
+                icon: const Icon(Icons.skip_next, color: Colors.white, size: 16),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatDuration(Duration duration) {
+  final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return '$minutes:$seconds';
+}
+
+class _MarqueeText extends StatefulWidget {
+  const _MarqueeText({required this.text, required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  State<_MarqueeText> createState() => _MarqueeTextState();
+}
+
+class _MarqueeTextState extends State<_MarqueeText> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 6));
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.linear);
+    _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textPainter = TextPainter(
+          text: TextSpan(text: widget.text, style: widget.style),
+          maxLines: 1,
+          textDirection: Directionality.of(context),
+        )..layout(maxWidth: constraints.maxWidth);
+
+        final shouldMarquee = textPainter.width > constraints.maxWidth;
+
+        if (!shouldMarquee) {
+          return Text(widget.text, style: widget.style, overflow: TextOverflow.ellipsis, maxLines: 1);
+        }
+
+        return SizedBox(
+          height: 16,
+          child: AnimatedBuilder(
+            animation: _animation,
+            builder: (context, child) {
+              return ClipRect(
+                child: Transform.translate(
+                  offset: Offset(-_animation.value * 24, 0),
+                  child: Text(widget.text, style: widget.style, overflow: TextOverflow.visible, maxLines: 1),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -171,7 +454,7 @@ class _PlaylistsTabState extends State<PlaylistsTab> {
                 await AppDatabase.instance.insertPlaylist({
                   'title': title,
                   'subtitle': subtitle.isEmpty ? 'Новый плейлист' : subtitle,
-                  'accent': '#66DEDD',
+                  'accent': _randomPlaylistAccent(),
                   'createdAt': DateTime.now().toIso8601String(),
                 });
 
@@ -263,7 +546,17 @@ class _PlaylistsTabState extends State<PlaylistsTab> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => PlaylistDetailsScreen(playlistId: playlistId),
+                              builder: (_) => PlaylistDetailsScreen(
+                                playlistId: playlistId,
+                                onPlayQueue: (queue, {required startIndex}) {
+                                  PlayerController.instance.playQueue(
+                                    queue: queue,
+                                    startIndex: startIndex,
+                                    sourceType: 'playlist',
+                                    sourceId: playlistId,
+                                  );
+                                },
+                              ),
                             ),
                           );
                         },
@@ -318,8 +611,9 @@ class _PlaylistsTabState extends State<PlaylistsTab> {
 
 class PlaylistDetailsScreen extends StatefulWidget {
   final int playlistId;
+  final void Function(List<Map<String, Object?>> queue, {required int startIndex}) onPlayQueue;
 
-  const PlaylistDetailsScreen({super.key, required this.playlistId});
+  const PlaylistDetailsScreen({super.key, required this.playlistId, required this.onPlayQueue});
 
   @override
   State<PlaylistDetailsScreen> createState() => _PlaylistDetailsScreenState();
@@ -430,6 +724,7 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                                 'title': track['title'] as String? ?? 'Без названия',
                                 'artist': track['artist'] as String? ?? 'Неизвестно',
                                 'cover': track['cover'] as String? ?? '#1B3A6A',
+                                'filePath': track['filePath'] as String? ?? '',
                               });
                               if (!mounted) return;
                               Navigator.pop(sheetContext);
@@ -479,118 +774,141 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
           final playlist = playlistSnapshot.data!;
           final accent = _parseColor(playlist['accent'] as String? ?? '#66DEDD');
 
-          return Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0B1624),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: accent,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.queue_music_rounded, color: Colors.white, size: 28),
-                        ),
+          return Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0B1624),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white12),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              playlist['title'] as String? ?? 'Плейлист',
-                              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: accent,
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              playlist['subtitle'] as String? ?? '',
-                              style: const TextStyle(color: Colors.white54, fontSize: 13),
+                            child: const Center(
+                              child: Icon(Icons.queue_music_rounded, color: Colors.white, size: 28),
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  playlist['title'] as String? ?? 'Плейлист',
+                                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  playlist['subtitle'] as String? ?? '',
+                                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text('Треки', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 10),
-                Expanded(
-                  child: FutureBuilder<List<Map<String, Object?>>>(
-                    future: _tracksFuture,
-                    builder: (context, tracksSnapshot) {
-                      if (!tracksSnapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator(color: Color(0xFF66DEDD)));
-                      }
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Треки', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: FutureBuilder<List<Map<String, Object?>>>(
+                        future: _tracksFuture,
+                        builder: (context, tracksSnapshot) {
+                          if (!tracksSnapshot.hasData) {
+                            return const Center(child: CircularProgressIndicator(color: Color(0xFF66DEDD)));
+                          }
 
-                      final tracks = tracksSnapshot.data ?? [];
-                      if (tracks.isEmpty) {
-                        return const Center(
-                          child: Text('В этом плейлисте пока нет треков', style: TextStyle(color: Colors.white54)),
-                        );
-                      }
+                          final tracks = tracksSnapshot.data ?? [];
+                          if (tracks.isEmpty) {
+                            return const Center(
+                              child: Text('В этом плейлисте пока нет треков', style: TextStyle(color: Colors.white54)),
+                            );
+                          }
 
-                      return ListView.separated(
-                        itemCount: tracks.length,
-                        separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
-                        itemBuilder: (context, index) {
-                          final track = tracks[index];
-                          return Dismissible(
-                            key: ValueKey(track['id']),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              color: Colors.red,
-                              child: const Icon(Icons.delete, color: Colors.white),
-                            ),
-                            onDismissed: (_) async {
-                              await _deleteTrack(track['id'] as int);
+                          return ListView.separated(
+                            itemCount: tracks.length,
+                            separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
+                            itemBuilder: (context, index) {
+                              final track = tracks[index];
+                              return Dismissible(
+                                key: ValueKey(track['id']),
+                                direction: DismissDirection.endToStart,
+                                background: Container(
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 20),
+                                  color: Colors.red,
+                                  child: const Icon(Icons.delete, color: Colors.white),
+                                ),
+                                onDismissed: (_) async {
+                                  await _deleteTrack(track['id'] as int);
+                                },
+                                child: GestureDetector(
+                                  onTap: () => widget.onPlayQueue(
+                                    tracks.map((item) => {
+                                      'id': item['id'],
+                                      'playlistId': widget.playlistId,
+                                      'title': item['title'],
+                                      'artist': item['artist'],
+                                      'cover': item['cover'],
+                                      'filePath': item['filePath'],
+                                    }).toList(),
+                                    startIndex: index,
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 6,
+                                          child: Text(
+                                            track['title'] as String? ?? 'Без названия',
+                                            style: const TextStyle(color: Colors.white, fontSize: 15),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 4,
+                                          child: Text(
+                                            track['artist'] as String? ?? 'Неизвестно',
+                                            textAlign: TextAlign.right,
+                                            style: const TextStyle(color: Colors.white54, fontSize: 14),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
                             },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    flex: 6,
-                                    child: Text(
-                                      track['title'] as String? ?? 'Без названия',
-                                      style: const TextStyle(color: Colors.white, fontSize: 15),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    flex: 4,
-                                    child: Text(
-                                      track['artist'] as String? ?? 'Неизвестно',
-                                      textAlign: TextAlign.right,
-                                      style: const TextStyle(color: Colors.white54, fontSize: 14),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           );
                         },
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Positioned(
+                left: 6,
+                right: 6,
+                bottom: 4,
+                child: _MiniPlayerBar(onTap: () => setState(() {})),
+              ),
+            ],
           );
         },
       ),

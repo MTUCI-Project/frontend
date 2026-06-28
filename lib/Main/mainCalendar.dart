@@ -13,8 +13,9 @@ class _CalendarTabState extends State<CalendarTab> {
   late DateTime _selectedDate;
   bool _isExpanded = false;
   List<Map<String, Object?>> _playlistsData = [];
-  final Map<String, int?> _timeAssignments = {};
-  final List<String> _selectedDayTimes = [];
+  List<Map<String, Object?>> _stationsData = [];
+  List<Map<String, Object?>> _radioSlots = [];
+  int? _selectedStationId;
 
   @override
   void initState() {
@@ -23,7 +24,7 @@ class _CalendarTabState extends State<CalendarTab> {
     _currentMonth = DateTime(now.year, now.month);
     _selectedDate = now;
     _loadPlaylists();
-    _loadAssignmentsForDay(now);
+    _loadStations();
   }
 
   @override
@@ -32,26 +33,158 @@ class _CalendarTabState extends State<CalendarTab> {
     final monthLabel = _monthLabel(_currentMonth);
     final compactDays = _buildCompactDays(_selectedDate);
     final calendarMaxHeight = MediaQuery.of(context).size.height * 0.42;
+    final selectedStationTitle = _stationTitleById(_selectedStationId) ?? 'Станция не выбрана';
+    final slotsCountLabel = _radioSlots.length == 1
+        ? '1 слот'
+        : _radioSlots.length < 5
+            ? '${_radioSlots.length} слота'
+            : '${_radioSlots.length} слотов';
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
           Row(
             children: [
-              const Expanded(
-                child: Text(
-                  'Расписание',
-                  style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Радиостанции',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Сначала создай станцию, потом наполняй её плейлистами по календарю',
+                      style: const TextStyle(color: Colors.white54, fontSize: 13),
+                    ),
+                  ],
                 ),
               ),
-              IconButton(
-                onPressed: _showAddTimeDialog,
-                icon: const Icon(Icons.add, color: Colors.white),
-                tooltip: 'Добавить время',
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: _showCreateStationDialog,
+                    icon: const Icon(Icons.add_circle_outline, color: Color(0xFF66DEDD)),
+                    tooltip: 'Создать радиостанцию',
+                  ),
+                  IconButton(
+                    onPressed: _selectedStationId == null ? null : _showAddSlotDialog,
+                    icon: const Icon(Icons.radio, color: Color(0xFF66DEDD)),
+                    tooltip: 'Добавить слот эфира',
+                  ),
+                ],
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          if (_stationsData.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B1624),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: const Text(
+                'Пока нет станций. Создай первую и начни строить эфир.',
+                style: TextStyle(color: Colors.white54),
+              ),
+            )
+          else
+            SizedBox(
+              height: 72,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _stationsData.length,
+                itemBuilder: (context, index) {
+                  final station = _stationsData[index];
+                  final stationId = station['id'] as int;
+                  final title = station['title'] as String;
+                  final isSelected = stationId == _selectedStationId;
+                  return GestureDetector(
+                    onTap: () => _selectStation(stationId),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFF66DEDD) : const Color(0xFF0F1723),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: isSelected ? const Color(0xFF66DEDD) : const Color(0xFF1F2A3B)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              color: isSelected ? Colors.black : Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isSelected ? 'Выбрано' : 'Открыть',
+                            style: TextStyle(
+                              color: isSelected ? Colors.black54 : Colors.white54,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0B1624),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF66DEDD).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.radio, color: Color(0xFF66DEDD)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        selectedStationTitle,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'На ${_formatDayLabel(_selectedDate)} — $slotsCountLabel',
+                        style: const TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
           Container(
@@ -90,7 +223,7 @@ class _CalendarTabState extends State<CalendarTab> {
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
-                          height: 68,
+                          height: 72,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             itemCount: compactDays.length,
@@ -224,32 +357,50 @@ class _CalendarTabState extends State<CalendarTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Расписание на дату',
+                  'Эфир выбранной станции',
                   style: TextStyle(color: Colors.white54, fontSize: 13),
                 ),
-                      const SizedBox(height: 8),
+                const SizedBox(height: 8),
                 const Text(
-                  'Назначения на день',
+                  'Слоты по расписанию',
                   style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
-                if (_selectedDayTimes.isEmpty)
+                if (_selectedStationId == null)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text('Нет назначений на выбранный день.', style: TextStyle(color: Colors.white54)),
+                    child: Text(
+                      'Сначала создай радиостанцию, а потом добавляй в неё плейлисты.',
+                      style: TextStyle(color: Colors.white54),
+                    ),
                   )
-                else ..._buildScheduleRows(),
+                else if (_radioSlots.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      'Пока здесь нет плейлистов. Добавь первый слот и запусти эфир.',
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                  )
+                else ..._buildSlotRows(),
               ],
             ),
           ),
-        ],
-      ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Future<void> _onDateSelected(DateTime day) async {
+    if (day.year == _selectedDate.year && day.month == _selectedDate.month && day.day == _selectedDate.day) {
+      return;
+    }
+
     setState(() => _selectedDate = day);
-    await _loadAssignmentsForDay(day);
+    await _loadSlotsForDate(day);
   }
 
   Future<void> _loadPlaylists() async {
@@ -258,82 +409,163 @@ class _CalendarTabState extends State<CalendarTab> {
     setState(() => _playlistsData = playlists);
   }
 
-  Future<void> _loadAssignmentsForDay(DateTime day) async {
-    final datePrefix = _formatDate(day);
-    final assignments = await AppDatabase.instance.getAssignmentsByDatePrefix('$datePrefix%');
+  Future<void> _loadStations() async {
+    final stations = await AppDatabase.instance.getRadioStations();
     if (!mounted) return;
-    _selectedDayTimes.clear();
-    _timeAssignments.clear();
-    for (final row in assignments) {
-      final fullDate = row['date'] as String;
-      final playlistId = row['playlistId'] as int?;
-      final time = fullDate.length >= 16 ? fullDate.substring(11, 16) : '00:00';
-      if (!_selectedDayTimes.contains(time)) {
-        _selectedDayTimes.add(time);
+    setState(() {
+      _stationsData = stations;
+      if (_stationsData.isNotEmpty && (_selectedStationId == null || !_stationsData.any((station) => station['id'] == _selectedStationId))) {
+        _selectedStationId = _stationsData.first['id'] as int;
       }
-      _timeAssignments[time] = playlistId;
+    });
+    if (_selectedStationId != null) {
+      await _loadSlotsForDate(_selectedDate, stationId: _selectedStationId!);
     }
-    _selectedDayTimes.sort();
-    setState(() {});
   }
 
-  Future<void> _saveAssignmentForTime(String time, int playlistId) async {
-    final dateTimeKey = _formatDateTime(_selectedDate, time);
-    final title = _playlistTitleById(playlistId);
-    await AppDatabase.instance.saveAssignment(
-      dateTimeKey,
-      playlistId,
-      note: title,
-    );
+  Future<void> _selectStation(int stationId) async {
+    setState(() => _selectedStationId = stationId);
+    await _loadSlotsForDate(_selectedDate, stationId: stationId);
+  }
+
+  Future<void> _loadSlotsForDate(DateTime day, {int? stationId}) async {
+    final dateKey = _formatDate(day);
+    final currentStationId = stationId ?? _selectedStationId;
+    if (currentStationId == null) {
+      if (!mounted) return;
+      setState(() => _radioSlots = []);
+      return;
+    }
+
+    final slots = await AppDatabase.instance.getRadioSlotsByDateAndStation(dateKey, currentStationId);
     if (!mounted) return;
-    if (!_selectedDayTimes.contains(time)) {
-      _selectedDayTimes.add(time);
-    }
-    _selectedDayTimes.sort();
-    _timeAssignments[time] = playlistId;
+    _radioSlots = slots;
+    _radioSlots.sort((a, b) {
+      final first = (a['slotTime'] as String?) ?? '00:00';
+      final second = (b['slotTime'] as String?) ?? '00:00';
+      return first.compareTo(second);
+    });
     setState(() {});
   }
 
-  Future<int?> _showPlaylistChoice() async {
-    if (_playlistsData.isEmpty) return null;
-    return await showModalBottomSheet<int>(
+  Future<void> _saveSlot(String time, int playlistId) async {
+    if (_selectedStationId == null) return;
+    final dateKey = _formatDate(_selectedDate);
+    await AppDatabase.instance.saveRadioSlot(
+      dayDate: dateKey,
+      slotTime: time,
+      stationId: _selectedStationId!,
+      playlistId: playlistId,
+      note: _playlistTitleById(playlistId),
+    );
+    await _loadSlotsForDate(_selectedDate, stationId: _selectedStationId!);
+  }
+
+  Future<void> _showCreateStationDialog() async {
+    final controller = TextEditingController();
+    final title = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0A121F),
+          title: const Text('Новая радиостанция', style: TextStyle(color: Colors.white)),
+          content: TextField(
+            controller: controller,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              hintText: 'Например: Утренний эфир',
+              hintStyle: TextStyle(color: Colors.white54),
+              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+              focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF66DEDD))),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Отмена', style: TextStyle(color: Colors.white54)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Создать', style: TextStyle(color: Color(0xFF66DEDD))),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (title == null || title.isEmpty || !mounted) return;
+
+    await AppDatabase.instance.insertRadioStation({
+      'title': title,
+      'accent': '#66DEDD',
+      'createdAt': DateTime.now().toIso8601String(),
+    });
+    await _loadStations();
+  }
+
+  Future<int?> _showPlaylistChoice({int? currentPlaylistId}) async {
+    if (_playlistsData.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Сначала создайте плейлист в разделе Плейлисты.')),
+        );
+      }
+      return null;
+    }
+
+    return showModalBottomSheet<int>(
       context: context,
       backgroundColor: const Color(0xFF0A121F),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Выберите плейлист',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 16),
-              ..._playlistsData.map((playlist) {
-                final id = playlist['id'] as int;
-                final title = playlist['title'] as String;
-                final subtitle = playlist['subtitle'] as String?;
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                  subtitle: subtitle == null ? null : Text(subtitle, style: const TextStyle(color: Colors.white54)),
-                  onTap: () => Navigator.of(context).pop(id),
-                );
-              }),
-              const SizedBox(height: 16),
-            ],
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Выберите плейлист',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 16),
+                ..._playlistsData.map((playlist) {
+                  final id = playlist['id'] as int;
+                  final title = playlist['title'] as String;
+                  final subtitle = playlist['subtitle'] as String?;
+                  final isSelected = currentPlaylistId == id;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    selected: isSelected,
+                    selectedTileColor: const Color(0xFF66DEDD).withValues(alpha: 0.16),
+                    title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    subtitle: subtitle == null ? null : Text(subtitle, style: const TextStyle(color: Colors.white54)),
+                    trailing: isSelected ? const Icon(Icons.check_circle, color: Color(0xFF66DEDD)) : null,
+                    onTap: () => Navigator.of(context).pop(id),
+                  );
+                }),
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  Future<void> _showAddTimeDialog() async {
+  Future<void> _showAddSlotDialog() async {
+    if (_selectedStationId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Сначала создайте радиостанцию.')),
+        );
+      }
+      return;
+    }
+
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
@@ -349,32 +581,43 @@ class _CalendarTabState extends State<CalendarTab> {
         child: child!,
       ),
     );
-    if (picked == null) return;
-    if (!mounted) return;
+    if (picked == null || !mounted) return;
+
     final time = picked.format(context);
     final playlistId = await _showPlaylistChoice();
-    if (!mounted) return;
-    if (playlistId != null) {
-      await _saveAssignmentForTime(time, playlistId);
-    }
+    if (!mounted || playlistId == null) return;
+
+    await _saveSlot(time, playlistId);
   }
 
   String _formatDate(DateTime date) {
     return '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
-  String _formatDateTime(DateTime date, String time) {
-    final datePart = _formatDate(date);
-    final normalizedTime = time.padLeft(5, '0');
-    return '$datePart $normalizedTime';
+  String _formatDayLabel(DateTime date) {
+    final weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    final months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    return '${weekdays[date.weekday - 1]}, ${date.day} ${months[date.month - 1]}';
+  }
+
+  String? _stationTitleById(int? id) {
+    if (id == null) return null;
+    for (final item in _stationsData) {
+      if (item['id'] == id) {
+        return item['title'] as String?;
+      }
+    }
+    return null;
   }
 
   String? _playlistTitleById(int? id) {
     if (id == null) return null;
-    return _playlistsData.cast<Map<String, Object?>>().firstWhere(
-      (item) => item['id'] == id,
-      orElse: () => {},
-    )['title'] as String?;
+    for (final item in _playlistsData) {
+      if (item['id'] == id) {
+        return item['title'] as String?;
+      }
+    }
+    return null;
   }
 
   List<DateTime> _buildDaysForMonth(DateTime month) {
@@ -405,101 +648,70 @@ class _CalendarTabState extends State<CalendarTab> {
     return List.generate(9, (index) => selectedDate.add(Duration(days: index)));
   }
 
-List<Widget> _buildScheduleRows() {
-  return _selectedDayTimes.map((time) {
-    final playlistId = _timeAssignments[time];
-    final playlistTitle = _playlistTitleById(playlistId);
+  List<Widget> _buildSlotRows() {
+    return _radioSlots.map((slot) {
+      final slotTime = slot['slotTime'] as String? ?? '00:00';
+      final playlistId = slot['playlistId'] as int?;
+      final playlistTitle = _playlistTitleById(playlistId);
 
-    return Dismissible(
-      key: ValueKey(time),
-      direction: DismissDirection.endToStart,
-
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        color: Colors.red,
-        child: const Icon(
-          Icons.delete,
-          color: Colors.white,
+      return Dismissible(
+        key: ValueKey(slot['id']),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          color: Colors.red,
+          child: const Icon(Icons.delete, color: Colors.white),
         ),
-      ),
-
-      onDismissed: (_) async {
-        final dateTime = _formatDateTime(_selectedDate, time);
-
-        await AppDatabase.instance.deleteAssignment(dateTime);
-
-        _selectedDayTimes.remove(time);
-        _timeAssignments.remove(time);
-
-        if (mounted) {
-          setState(() {});
-        }
-      },
-
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: 12,
-              horizontal: 4,
-            ),
-            child: Row(
-              children: [
-
-                SizedBox(
-                  width: 70,
-                  child: Text(
-                    time,
-                    style: const TextStyle(
-                      color: Color(0xFF66DEDD),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
+        onDismissed: (_) async {
+          await AppDatabase.instance.deleteRadioSlot(slot['id'] as int);
+          await _loadSlotsForDate(_selectedDate, stationId: _selectedStationId);
+        },
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 72,
+                    child: Text(
+                      slotTime,
+                      style: const TextStyle(color: Color(0xFF66DEDD), fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                   ),
-                ),
-
-                Expanded(
-                  child: Text(
-                    playlistTitle ?? "Плейлист не выбран",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
+                  Expanded(
+                    child: Text(
+                      playlistTitle ?? 'Плейлист не выбран',
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-
-                IconButton(
-                  icon: const Icon(
-                    Icons.edit,
-                    color: Colors.white54,
-                    size: 20,
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.white54, size: 20),
+                    onPressed: () async {
+                      final newPlaylistId = await _showPlaylistChoice(currentPlaylistId: playlistId);
+                      if (newPlaylistId != null) {
+                        await AppDatabase.instance.saveRadioSlot(
+                          dayDate: _formatDate(_selectedDate),
+                          slotTime: slotTime,
+                          stationId: _selectedStationId!,
+                          playlistId: newPlaylistId,
+                          note: _playlistTitleById(newPlaylistId),
+                        );
+                        await _loadSlotsForDate(_selectedDate, stationId: _selectedStationId);
+                      }
+                    },
                   ),
-                  onPressed: () async {
-                    final playlistId = await _showPlaylistChoice();
-
-                    if (playlistId != null) {
-                      await _saveAssignmentForTime(
-                        time,
-                        playlistId,
-                      );
-                    }
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-
-          const Divider(
-            color: Colors.white10,
-            height: 1,
-          ),
-        ],
-      ),
-    );
-  }).toList();
-}
+            const Divider(color: Colors.white10, height: 1),
+          ],
+        ),
+      );
+    }).toList();
+  }
 
   String _weekdayShort(int weekday) {
     const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
