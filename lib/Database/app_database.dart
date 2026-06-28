@@ -131,6 +131,15 @@ class AppDatabase {
     return db.insert('tracks', track);
   }
 
+  Future<int> deleteTrack(int trackId) async {
+    final db = await database;
+    return db.delete(
+      'tracks',
+      where: 'id = ?',
+      whereArgs: [trackId],
+    );
+  }
+
   Future<Map<String, Object?>?> getAssignmentByDate(String date) async {
     final db = await database;
     final result = await db.query(
