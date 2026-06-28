@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'auth_screen.dart';
+import 'Auth/auth_screen.dart';
 import 'Internet/connectivity_service.dart';
 import 'Internet/noInternetScreen.dart';
+import 'Main/mainScreen.dart';
 import 'Register/registerScreen.dart';
 import 'Register/registerScreencCode.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const OncastApp());
 }
 
@@ -51,7 +53,7 @@ class _OncastAppState extends State<OncastApp> {
         '/': (context) => const AuthScreen(),
         '/register': (context) => const RegisterScreen(),
         '/register-code': (context) => const RegisterCodeScreen(),
-        '/home': (context) => const HomeScreen(),
+        '/home': (context) => const MainScreen(),
       },
       builder: (context, child) {
         final showOffline = !_connectivityService.isOnline;
@@ -69,14 +71,3 @@ class _OncastAppState extends State<OncastApp> {
   }
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('oncast')),
-      body: const Center(child: Text('Главный экран')),
-    );
-  }
-}

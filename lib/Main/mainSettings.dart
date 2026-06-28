@@ -1,239 +1,87 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-/// Экран настроек
-class MainSettings extends StatelessWidget {
-  final int partnerId;
-  final bool isDarkMode;
-  final VoidCallback onThemeChanged;
-  final VoidCallback onLogout;
+const String _profileIconSvg = '''<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 12C14.76 12 17 9.76 17 7C17 4.24 14.76 2 12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12ZM12 14C8.13 14 5 17.13 5 21H19C19 17.13 15.87 14 12 14Z" fill="currentColor"/>
+</svg>''';
 
-  const MainSettings({
-    super.key,
-    required this.partnerId,
-    required this.isDarkMode,
-    required this.onThemeChanged,
-    required this.onLogout,
-  });
+class SettingsTab extends StatelessWidget {
+  const SettingsTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isDark = isDarkMode;
-    final textColor = isDark ? Colors.white : Colors.brown;
-    final secondaryTextColor = isDark ? const Color(0xFFB0B0B0) : Colors.brown.shade600;
-    final cardBg = isDark ? const Color(0xFF2D2D2D) : Colors.white;
-    final borderColor = isDark ? Colors.grey.shade700 : Colors.brown.shade200;
-
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Заголовок
-            Padding(
-              padding: const EdgeInsets.only(bottom: 24),
-              child: Text(
-                'Настройки',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-            ),
-
-            // Уведомления
-            _buildSettingSection(
-              'Уведомления',
-              [
-                _buildSettingTile(
-                  'Включить уведомления',
-                  'Получать напоминания о важных датах',
-                  Icons.notifications_rounded,
-                  isDark,
-                  textColor,
-                  secondaryTextColor,
-                ),
-              ],
-              isDark,
-              cardBg,
-              borderColor,
-            ),
-            const SizedBox(height: 16),
-
-            // Внешний вид
-            _buildSettingSection(
-              'Внешний вид',
-              [
-                _buildThemeToggleTile(
-                  isDark,
-                  textColor,
-                  secondaryTextColor,
-                  onThemeChanged,
-                ),
-              ],
-              isDark,
-              cardBg,
-              borderColor,
-            ),
-            const SizedBox(height: 16),
-
-            // Выход
-            _buildSettingSection(
-              'Аккаунт',
-              [
-                _buildLogoutButton(
-                  isDark,
-                  textColor,
-                  onLogout,
-                ),
-              ],
-              isDark,
-              cardBg,
-              borderColor,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingSection(String title, List<Widget> children, bool isDark, Color cardBg, Color borderColor) {
-    final textColor = isDark ? Colors.white : Colors.brown;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: textColor,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor),
-          ),
-          child: Column(children: children),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSettingTile(String title, String subtitle, IconData icon, bool isDark, Color textColor, Color secondaryTextColor) {
     return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: isDark ? Colors.brown.shade700 : Colors.brown, size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const Text(
+            'Профиль',
+            style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Управляй аккаунтом и выходом',
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0B1624),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Row(
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
+                Container(
+                  width: 62,
+                  height: 62,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF66DEDD).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Center(
+                    child: SvgPicture.string(
+                      _profileIconSvg,
+                      width: 28,
+                      height: 28,
+                      colorFilter: const ColorFilter.mode(Color(0xFF66DEDD), BlendMode.srcIn),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: secondaryTextColor,
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Nikita', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                      SizedBox(height: 4),
+                      Text('nikita@example.com', style: TextStyle(color: Colors.white54, fontSize: 13)),
+                    ],
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/');
+              },
+              icon: const Icon(Icons.logout, color: Colors.black),
+              label: const Text('Выйти из аккаунта'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF66DEDD),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildThemeToggleTile(bool isDark, Color textColor, Color secondaryTextColor, VoidCallback onToggle) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          Icon(
-            isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-            color: isDark ? Colors.amber : Colors.orange,
-            size: 24,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isDark ? 'Тёмная тема' : 'Светлая тема',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  isDark ? 'Сейчас активна тёмная тема' : 'Сейчас активна светлая тема',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: secondaryTextColor,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: isDark,
-            onChanged: (_) => onToggle(),
-            activeColor: isDark ? Colors.brown.shade700 : Colors.brown,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLogoutButton(bool isDark, Color textColor, VoidCallback onLogout) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: onLogout,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red.shade600,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.logout_rounded, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'Выход',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
