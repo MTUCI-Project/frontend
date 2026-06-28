@@ -112,107 +112,109 @@ class _CalendarTabState extends State<CalendarTab> {
                               ],
                             ),
                             const SizedBox(height: 12),
-                        SizedBox(
-                          height: 68,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: compactDays.length,
-                            itemBuilder: (context, index) {
-                              final day = compactDays[index];
-                              final isSelected = day.year == _selectedDate.year && day.month == _selectedDate.month && day.day == _selectedDate.day;
-                              return GestureDetector(
-                                onTap: () => _onDateSelected(day),
-                                child: Container(
-                                  width: 58,
-                                  margin: const EdgeInsets.only(right: 10),
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isSelected ? const Color(0xFF00C3C7) : const Color(0xFF0F1723),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: isSelected ? const Color(0xFF00C3C7) : const Color(0xFF1F2A3B)),
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        _weekdayShort(day.weekday),
-                                        style: TextStyle(
-                                          color: isSelected ? Colors.black : Colors.white54,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                            SizedBox(
+                              height: 68,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: compactDays.length,
+                                itemBuilder: (context, index) {
+                                  final day = compactDays[index];
+                                  final isSelected = day.year == _selectedDate.year && day.month == _selectedDate.month && day.day == _selectedDate.day;
+                                  return GestureDetector(
+                                    onTap: () => _onDateSelected(day),
+                                    child: Container(
+                                      width: 58,
+                                      margin: const EdgeInsets.only(right: 10),
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? const Color(0xFF00C3C7) : const Color(0xFF0F1723),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: isSelected ? const Color(0xFF00C3C7) : const Color(0xFF1F2A3B)),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${day.day}',
-                                        style: TextStyle(
-                                          color: isSelected ? Colors.black : Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        if (_isExpanded) ...[
-                          const SizedBox(height: 10),
-                          Row(
-                            children: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
-                                .map((day) => Expanded(
-                                      child: Center(
-                                        child: Text(
-                                          day,
-                                          style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w600),
-                                        ),
-                                      ),
-                                    ))
-                                .toList(),
-                          ),
-                          const SizedBox(height: 8),
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: days.length,
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 7,
-                              mainAxisSpacing: 8,
-                              crossAxisSpacing: 8,
-                              childAspectRatio: 1,
-                            ),
-                            itemBuilder: (context, index) {
-                              final day = days[index];
-                              final isCurrentMonth = day.month == _currentMonth.month;
-                              final isSelected = day.year == _selectedDate.year && day.month == _selectedDate.month && day.day == _selectedDate.day;
-
-                              return GestureDetector(
-                                onTap: () => _onDateSelected(day),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: isSelected ? const Color(0xFF66DEDD) : const Color(0xFF101A2B),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: isSelected ? const Color(0xFF66DEDD) : Colors.white12),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      '${day.day}',
-                                      style: TextStyle(
-                                        color: isCurrentMonth ? Colors.white : Colors.white38,
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            _weekdayShort(day.weekday),
+                                            style: TextStyle(
+                                              color: isSelected ? Colors.black : Colors.white54,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${day.day}',
+                                            style: TextStyle(
+                                              color: isSelected ? Colors.black : Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
+                                  );
+                                },
+                              ),
+                            ),
+                            if (_isExpanded) ...[
+                              const SizedBox(height: 10),
+                              Row(
+                                children: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+                                    .map((day) => Expanded(
+                                          child: Center(
+                                            child: Text(
+                                              day,
+                                              style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
+                                        ))
+                                    .toList(),
+                              ),
+                              const SizedBox(height: 8),
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: days.length,
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 7,
+                                  mainAxisSpacing: 8,
+                                  crossAxisSpacing: 8,
+                                  childAspectRatio: 1,
                                 ),
-                              );
-                            },
-                          ),
-                        ],
-                      ],
+                                itemBuilder: (context, index) {
+                                  final day = days[index];
+                                  final isCurrentMonth = day.month == _currentMonth.month;
+                                  final isSelected = day.year == _selectedDate.year && day.month == _selectedDate.month && day.day == _selectedDate.day;
+
+                                  return GestureDetector(
+                                    onTap: () => _onDateSelected(day),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? const Color(0xFF66DEDD) : const Color(0xFF101A2B),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: isSelected ? const Color(0xFF66DEDD) : Colors.white12),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${day.day}',
+                                          style: TextStyle(
+                                            color: isCurrentMonth ? Colors.white : Colors.white38,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
