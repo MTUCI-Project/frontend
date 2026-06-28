@@ -118,6 +118,75 @@ class _PlaylistsTabState extends State<PlaylistsTab> {
     _playlistsFuture = AppDatabase.instance.getPlaylists();
   }
 
+  void _refreshPlaylists() {
+    setState(() {
+      _playlistsFuture = AppDatabase.instance.getPlaylists();
+    });
+  }
+
+  Future<void> _showCreatePlaylistDialog() async {
+    final titleController = TextEditingController();
+    final subtitleController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF101820),
+          title: const Text('Создать плейлист', style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Название',
+                  labelStyle: TextStyle(color: Colors.white54),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: subtitleController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Подзаголовок',
+                  labelStyle: TextStyle(color: Colors.white54),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final title = titleController.text.trim();
+                final subtitle = subtitleController.text.trim();
+
+                if (title.isEmpty) return;
+
+                await AppDatabase.instance.insertPlaylist({
+                  'title': title,
+                  'subtitle': subtitle.isEmpty ? 'Новый плейлист' : subtitle,
+                  'accent': '#66DEDD',
+                  'createdAt': DateTime.now().toIso8601String(),
+                });
+
+                if (!mounted) return;
+                Navigator.pop(context);
+                _refreshPlaylists();
+              },
+              child: const Text('Создать'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -125,14 +194,30 @@ class _PlaylistsTabState extends State<PlaylistsTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Плейлисты',
-            style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Твои подборки и любимые миксы',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Плейлисты',
+                      style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Твои подборки и любимые миксы',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _showCreatePlaylistDialog,
+                icon: const Icon(Icons.add, color: Color(0xFF66DEDD), size: 28),
+                tooltip: 'Создать плейлист',
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           Expanded(
@@ -155,40 +240,69 @@ class _PlaylistsTabState extends State<PlaylistsTab> {
                   itemBuilder: (context, index) {
                     final item = playlists[index];
                     final accent = _parseColor(item['accent'] as String? ?? '#5C7CFA');
-                    return Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0B1624),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white12),
+                    final playlistId = item['id'] as int;
+
+                    return Dismissible(
+                      key: ValueKey(playlistId),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(Icons.delete_outline, color: Colors.white),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: accent,
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Center(
-                                child: SvgPicture.string(
-                                  _discSvg,
-                                  width: 44,
-                                  height: 44,
-                                  colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                      onDismissed: (_) async {
+                        await AppDatabase.instance.deletePlaylist(playlistId);
+                        _refreshPlaylists();
+                      },
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PlaylistDetailsScreen(playlistId: playlistId),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0B1624),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: accent,
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: Center(
+                                    child: SvgPicture.string(
+                                      _discSvg,
+                                      width: 44,
+                                      height: 44,
+                                      colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              const SizedBox(height: 12),
+                              Text(
+                                item['title'] as String? ?? 'Плейлист',
+                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(item['subtitle'] as String? ?? '', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                            ],
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            item['title'] as String? ?? 'Плейлист',
-                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(item['subtitle'] as String? ?? '', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                        ],
+                        ),
                       ),
                     );
                   },
@@ -197,6 +311,288 @@ class _PlaylistsTabState extends State<PlaylistsTab> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class PlaylistDetailsScreen extends StatefulWidget {
+  final int playlistId;
+
+  const PlaylistDetailsScreen({super.key, required this.playlistId});
+
+  @override
+  State<PlaylistDetailsScreen> createState() => _PlaylistDetailsScreenState();
+}
+
+class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
+  late Future<Map<String, Object?>> _playlistFuture;
+  late Future<List<Map<String, Object?>>> _tracksFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  void _refresh() {
+    setState(() {
+      _playlistFuture = AppDatabase.instance.getPlaylists().then((playlists) {
+        return playlists.firstWhere(
+          (item) => item['id'] == widget.playlistId,
+          orElse: () => {
+            'id': widget.playlistId,
+            'title': 'Плейлист',
+            'subtitle': '',
+            'accent': '#66DEDD',
+          },
+        );
+      });
+      _tracksFuture = AppDatabase.instance.getPlaylistTracks(widget.playlistId);
+    });
+  }
+
+  Future<void> _deleteTrack(int trackId) async {
+    await AppDatabase.instance.deleteTrack(trackId);
+    _refresh();
+  }
+
+  Future<List<Map<String, Object?>>> _loadAvailableTracks() async {
+    final allTracks = await AppDatabase.instance.getAllTracks();
+    final currentTracks = await AppDatabase.instance.getPlaylistTracks(widget.playlistId);
+    final currentKeys = currentTracks
+        .map((track) => '${track['title'] ?? ''}::${track['artist'] ?? ''}')
+        .toSet();
+
+    return allTracks.where((track) {
+      final key = '${track['title'] ?? ''}::${track['artist'] ?? ''}';
+      return !currentKeys.contains(key);
+    }).toList();
+  }
+
+  Future<void> _showAddTrackSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          decoration: const BoxDecoration(
+            color: Color(0xFF0B1624),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Добавить из библиотеки',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 420),
+                child: FutureBuilder<List<Map<String, Object?>>>(
+                  future: _loadAvailableTracks(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator(color: Color(0xFF66DEDD)));
+                    }
+
+                    final tracks = snapshot.data ?? [];
+                    if (tracks.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Text('Все треки уже добавлены в этот плейлист', style: TextStyle(color: Colors.white54)),
+                      );
+                    }
+
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: tracks.length,
+                      separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
+                      itemBuilder: (context, index) {
+                        final track = tracks[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            track['title'] as String? ?? 'Без названия',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            track['artist'] as String? ?? 'Неизвестно',
+                            style: const TextStyle(color: Colors.white54),
+                          ),
+                          trailing: IconButton(
+                            onPressed: () async {
+                              await AppDatabase.instance.insertTrack({
+                                'playlistId': widget.playlistId,
+                                'title': track['title'] as String? ?? 'Без названия',
+                                'artist': track['artist'] as String? ?? 'Неизвестно',
+                                'cover': track['cover'] as String? ?? '#1B3A6A',
+                              });
+                              if (!mounted) return;
+                              Navigator.pop(sheetContext);
+                              _refresh();
+                            },
+                            icon: const Icon(Icons.add_circle_outline, color: Color(0xFF66DEDD)),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    _refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF020912),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF020912),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('Плейлист'),
+        actions: [
+          IconButton(
+            onPressed: _showAddTrackSheet,
+            icon: const Icon(Icons.add, color: Color(0xFF66DEDD), size: 28),
+            tooltip: 'Добавить трек',
+          ),
+        ],
+      ),
+      body: FutureBuilder<Map<String, Object?>>(
+        future: _playlistFuture,
+        builder: (context, playlistSnapshot) {
+          if (!playlistSnapshot.hasData) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF66DEDD)));
+          }
+
+          final playlist = playlistSnapshot.data!;
+          final accent = _parseColor(playlist['accent'] as String? ?? '#66DEDD');
+
+          return Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0B1624),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: accent,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.queue_music_rounded, color: Colors.white, size: 28),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              playlist['title'] as String? ?? 'Плейлист',
+                              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              playlist['subtitle'] as String? ?? '',
+                              style: const TextStyle(color: Colors.white54, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Треки', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: FutureBuilder<List<Map<String, Object?>>>(
+                    future: _tracksFuture,
+                    builder: (context, tracksSnapshot) {
+                      if (!tracksSnapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator(color: Color(0xFF66DEDD)));
+                      }
+
+                      final tracks = tracksSnapshot.data ?? [];
+                      if (tracks.isEmpty) {
+                        return const Center(
+                          child: Text('В этом плейлисте пока нет треков', style: TextStyle(color: Colors.white54)),
+                        );
+                      }
+
+                      return ListView.separated(
+                        itemCount: tracks.length,
+                        separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
+                        itemBuilder: (context, index) {
+                          final track = tracks[index];
+                          return Dismissible(
+                            key: ValueKey(track['id']),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              color: Colors.red,
+                              child: const Icon(Icons.delete, color: Colors.white),
+                            ),
+                            onDismissed: (_) async {
+                              await _deleteTrack(track['id'] as int);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 6,
+                                    child: Text(
+                                      track['title'] as String? ?? 'Без названия',
+                                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 4,
+                                    child: Text(
+                                      track['artist'] as String? ?? 'Неизвестно',
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(color: Colors.white54, fontSize: 14),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

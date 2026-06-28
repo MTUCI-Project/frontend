@@ -20,8 +20,24 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE tracks ADD COLUMN filePath TEXT');
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS player_state (
+              id INTEGER PRIMARY KEY CHECK (id = 1),
+              sourceType TEXT NOT NULL,
+              sourceId INTEGER,
+              currentTrackId INTEGER,
+              currentIndex INTEGER NOT NULL DEFAULT 0,
+              isPlaying INTEGER NOT NULL DEFAULT 0,
+              updatedAt TEXT NOT NULL
+            )
+          ''');
+        }
+      },
     );
   }
 
@@ -43,7 +59,20 @@ class AppDatabase {
         title TEXT NOT NULL,
         artist TEXT NOT NULL,
         cover TEXT NOT NULL,
+        filePath TEXT,
         FOREIGN KEY (playlistId) REFERENCES playlists(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE player_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        sourceType TEXT NOT NULL,
+        sourceId INTEGER,
+        currentTrackId INTEGER,
+        currentIndex INTEGER NOT NULL DEFAULT 0,
+        isPlaying INTEGER NOT NULL DEFAULT 0,
+        updatedAt TEXT NOT NULL
       )
     ''');
 
@@ -121,14 +150,69 @@ class AppDatabase {
     );
   }
 
+  Future<List<Map<String, Object?>>> getAllTracks() async {
+    final db = await database;
+    return db.query('tracks', orderBy: 'id ASC');
+  }
+
   Future<int> insertPlaylist(Map<String, Object?> playlist) async {
     final db = await database;
     return db.insert('playlists', playlist);
   }
 
+  Future<int> deletePlaylist(int playlistId) async {
+    final db = await database;
+    return db.delete(
+      'playlists',
+      where: 'id = ?',
+      whereArgs: [playlistId],
+    );
+  }
+
   Future<int> insertTrack(Map<String, Object?> track) async {
     final db = await database;
     return db.insert('tracks', track);
+  }
+
+  Future<Map<String, Object?>?> getPlayerState() async {
+    final db = await database;
+    final result = await db.query('player_state', where: 'id = ?', whereArgs: [1], limit: 1);
+    return result.isEmpty ? null : result.first;
+  }
+
+  Future<int> savePlayerState({
+    required String sourceType,
+    int? sourceId,
+    int? currentTrackId,
+    required int currentIndex,
+    required bool isPlaying,
+  }) async {
+    final db = await database;
+    final existing = await getPlayerState();
+    final payload = {
+      'sourceType': sourceType,
+      'sourceId': sourceId,
+      'currentTrackId': currentTrackId,
+      'currentIndex': currentIndex,
+      'isPlaying': isPlaying ? 1 : 0,
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+
+    if (existing == null) {
+      return db.insert('player_state', {'id': 1, ...payload});
+    }
+
+    return db.update(
+      'player_state',
+      payload,
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+  }
+
+  Future<int> clearPlayerState() async {
+    final db = await database;
+    return db.delete('player_state', where: 'id = ?', whereArgs: [1]);
   }
 
   Future<int> deleteTrack(int trackId) async {
@@ -181,4 +265,14 @@ class AppDatabase {
       whereArgs: [date],
     );
   }
+
+  Future<int> deleteAssignment(String date) async {
+  final db = await database;
+
+  return db.delete(
+    'calendar_assignments',
+    where: 'date = ?',
+    whereArgs: [date],
+  );
+}
 }

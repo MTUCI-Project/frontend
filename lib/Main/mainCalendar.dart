@@ -405,75 +405,101 @@ class _CalendarTabState extends State<CalendarTab> {
     return List.generate(9, (index) => selectedDate.add(Duration(days: index)));
   }
 
-  List<Widget> _buildScheduleRows() {
-    return _selectedDayTimes.map((time) {
-      final playlistId = _timeAssignments[time];
-      final playlistTitle = _playlistTitleById(playlistId);
+List<Widget> _buildScheduleRows() {
+  return _selectedDayTimes.map((time) {
+    final playlistId = _timeAssignments[time];
+    final playlistTitle = _playlistTitleById(playlistId);
 
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
-        decoration: BoxDecoration(
-          color: const Color(0xFF101A2B),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF1F2A3B)),
+    return Dismissible(
+      key: ValueKey(time),
+      direction: DismissDirection.endToStart,
+
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: Colors.red,
+        child: const Icon(
+          Icons.delete,
+          color: Colors.white,
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 64,
-              height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1B2A3B),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Center(
-                child: Text(
-                  time,
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-              ),
+      ),
+
+      onDismissed: (_) async {
+        final dateTime = _formatDateTime(_selectedDate, time);
+
+        await AppDatabase.instance.deleteAssignment(dateTime);
+
+        _selectedDayTimes.remove(time);
+        _timeAssignments.remove(time);
+
+        if (mounted) {
+          setState(() {});
+        }
+      },
+
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: 12,
+              horizontal: 4,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Плейлист',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    playlistTitle ?? 'Плейлист не выбран',
-                    style: TextStyle(
-                      color: playlistTitle != null ? Colors.white : Colors.white54,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+            child: Row(
+              children: [
+
+                SizedBox(
+                  width: 70,
+                  child: Text(
+                    time,
+                    style: const TextStyle(
+                      color: Color(0xFF66DEDD),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
                     ),
                   ),
-                ],
-              ),
+                ),
+
+                Expanded(
+                  child: Text(
+                    playlistTitle ?? "Плейлист не выбран",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+
+                IconButton(
+                  icon: const Icon(
+                    Icons.edit,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
+                  onPressed: () async {
+                    final playlistId = await _showPlaylistChoice();
+
+                    if (playlistId != null) {
+                      await _saveAssignmentForTime(
+                        time,
+                        playlistId,
+                      );
+                    }
+                  },
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            OutlinedButton(
-              onPressed: () async {
-                final playlistId = await _showPlaylistChoice();
-                if (playlistId != null) {
-                  await _saveAssignmentForTime(time, playlistId);
-                }
-              },
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFF66DEDD)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                foregroundColor: const Color(0xFF66DEDD),
-              ),
-              child: const Text('Выбрать'),
-            ),
-          ],
-        ),
-      );
-    }).toList();
-  }
+          ),
+
+          const Divider(
+            color: Colors.white10,
+            height: 1,
+          ),
+        ],
+      ),
+    );
+  }).toList();
+}
 
   String _weekdayShort(int weekday) {
     const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];

@@ -4,7 +4,9 @@ import 'package:path/path.dart' as p;
 import '../Database/app_database.dart';
 
 class MusicTab extends StatefulWidget {
-  const MusicTab({super.key});
+  const MusicTab({super.key, required this.onPlayQueue});
+
+  final void Function(List<Map<String, Object?>> queue, {required int startIndex}) onPlayQueue;
 
   @override
   State<MusicTab> createState() => _MusicTabState();
@@ -55,6 +57,7 @@ class _MusicTabState extends State<MusicTab> {
       'title': parsedName.title.isEmpty ? 'Новая песня' : parsedName.title,
       'artist': parsedName.artist.isEmpty ? 'Из загрузок' : parsedName.artist,
       'cover': '#1B3A6A',
+      'filePath': file.path,
     });
 
     if (!mounted) return;
@@ -184,9 +187,21 @@ class _MusicTabState extends State<MusicTab> {
                     itemBuilder: (context, index) {
                       final song = songs[index];
 
-                      return Dismissible(
-                        key: ValueKey(song.title + index.toString()),
-                        direction: DismissDirection.endToStart,
+                      return GestureDetector(
+                        onTap: () => widget.onPlayQueue(
+                          songs.map((song) => {
+                            'id': song.trackId,
+                            'playlistId': song.playlistId,
+                            'title': song.title,
+                            'artist': song.artist,
+                            'cover': song.cover,
+                            'filePath': song.filePath,
+                          }).toList(),
+                          startIndex: index,
+                        ),
+                        child: Dismissible(
+                          key: ValueKey(song.title + index.toString()),
+                          direction: DismissDirection.endToStart,
 
                         background: Container(
                           alignment: Alignment.centerRight,
@@ -268,6 +283,7 @@ class _MusicTabState extends State<MusicTab> {
                             ),
                           ],
                         ),
+                        ),
                       );
                     },
                   );
@@ -318,8 +334,12 @@ Future<List<_SongItemData>> _loadSongs() async {
     for (final t in tracks) {
       result.add(
         _SongItemData(
+          trackId: t['id'] as int?,
+          playlistId: p['id'] as int?,
           title: (t['title'] as String?) ?? 'No title',
           artist: (t['artist'] as String?) ?? 'Unknown',
+          cover: (t['cover'] as String?) ?? '#1B3A6A',
+          filePath: t['filePath'] as String?,
         ),
       );
     }
