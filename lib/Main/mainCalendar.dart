@@ -94,7 +94,7 @@ class _CalendarTabState extends State<CalendarTab> {
                             Row(
                               children: [
                                 IconButton(
-                                  onPressed: () => setState(() => _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1)),
+                                  onPressed: () => setState(() => _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1)),
                                   icon: const Icon(Icons.chevron_left, color: Colors.white),
                                 ),
                                 Expanded(
@@ -106,7 +106,7 @@ class _CalendarTabState extends State<CalendarTab> {
                                   ),
                                 ),
                                 IconButton(
-                                  onPressed: () => setState(() => _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1)),
+                                  onPressed: () => setState(() => _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1)),
                                   icon: const Icon(Icons.chevron_right, color: Colors.white),
                                 ),
                               ],
